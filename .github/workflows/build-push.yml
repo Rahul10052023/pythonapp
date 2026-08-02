@@ -1,15 +1,12 @@
-name: Push Docker Image to Amazon ECR
+name: Build and Push Docker Image to Amazon ECR
 
 on:
-  workflow_run:
-    workflows:
-      - Build Docker Image
-    types:
-      - completed
+  push:
+    branches:
+      - main
 
 jobs:
-
-  push-image:
+  build-and-push:
 
     runs-on: ubuntu-latest
 
@@ -18,9 +15,11 @@ jobs:
 
     steps:
 
+      # Step 1: Download repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # Step 2: Configure AWS CLI
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -28,20 +27,36 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      # Step 3: Login to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      # Step 4: Build Docker Image
       - name: Build Docker Image
         run: |
           docker build -t python-demo:${{ github.run_number }} .
 
+      # Step 5: Tag Docker Image
       - name: Tag Docker Image
         run: |
           docker tag python-demo:${{ github.run_number }} \
           ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:${{ github.run_number }}
 
-      - name: Push Image
+      # Step 6: Tag as latest
+      - name: Tag Latest Image
+        run: |
+          docker tag python-demo:${{ github.run_number }} \
+          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest
+
+      # Step 7: Push Version Tag
+      - name: Push Version Image
         run: |
           docker push \
           ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:${{ github.run_number }}
+
+      # Step 8: Push Latest Tag
+      - name: Push Latest Image
+        run: |
+          docker push \
+          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest
