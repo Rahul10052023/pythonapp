@@ -1,7 +1,11 @@
 name: Push Docker Image to Amazon ECR
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - Build Docker Image
+    types:
+      - completed
 
 jobs:
 
